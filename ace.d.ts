@@ -235,6 +235,8 @@ export namespace Ace {
     relativeLineNumbers: boolean;
     enableMultiselect: boolean;
     enableKeyboardAccessibility: boolean;
+    textInputAriaLabel: string;
+    enableMobileMenu: boolean;
   }
 
   export interface SearchOptions {
@@ -622,6 +624,7 @@ export namespace Ace {
     documentToScreenColumn(row: number, docColumn: number): number;
     documentToScreenRow(docRow: number, docColumn: number): number;
     getScreenLength(): number;
+    getPrecedingCharacter(): string;
     toJSON(): Object;
     destroy(): void;
   }
@@ -661,7 +664,8 @@ export namespace Ace {
     removeListener(name: string, callback: Function): void;
     removeEventListener(name: string, callback: Function): void;
 
-    exec(command: string, editor: Editor, args: any): boolean;
+    exec(command: string | string[] | Command, editor: Editor, args: any): boolean;
+    canExecute(command: string | Command, editor: Editor): boolean;
     toggleRecording(editor: Editor): void;
     replay(editor: Editor): void;
     addCommand(command: Command): void;

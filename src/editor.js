@@ -520,7 +520,12 @@ class Editor {
 
                 if (token && /\b(?:tag-open|tag-name)/.test(token.type)) {
                     var tagNamesRanges = session.getMatchingTags(pos);
-                    if (tagNamesRanges) ranges = [tagNamesRanges.openTagName, tagNamesRanges.closeTagName];
+                    if (tagNamesRanges) {
+                        ranges = [
+                            tagNamesRanges.openTagName.isEmpty() ? tagNamesRanges.openTag : tagNamesRanges.openTagName,
+                            tagNamesRanges.closeTagName.isEmpty() ? tagNamesRanges.closeTag : tagNamesRanges.closeTagName
+                        ];
+                    }
                 }
             }
             if (!ranges && session.$mode.getMatching)
@@ -978,6 +983,7 @@ class Editor {
             ? [new Range(0, 0, session.doc.getLength() - 1, 0)]
             : this.selection.getAllRanges();
 
+        /**@type{string|string[]}*/
         var prevLineState = "";
         var prevLine = "";
         var lineIndent = "";
@@ -2934,6 +2940,7 @@ config.defineOptions(Editor.prototype, "editor", {
             // - Prevent tab-trapping.
             // - Hide irrelevant elements from assistive technology.
             // - On Windows, set more lines to the textarea.
+            // - set aria-label to the text input.
             if (value){
                 this.renderer.enableKeyboardAccessibility = true;
                 this.renderer.keyboardFocusClassName = "ace_keyboard-focus";
@@ -2944,10 +2951,10 @@ config.defineOptions(Editor.prototype, "editor", {
                 this.textInput.setNumberOfExtraLines(useragent.isWin ? 3 : 0);
                 this.renderer.scroller.setAttribute("tabindex", 0);
                 this.renderer.scroller.setAttribute("role", "group");
-                this.renderer.scroller.setAttribute("aria-roledescription", nls("editor"));
+                this.renderer.scroller.setAttribute("aria-roledescription", nls("editor.scroller.aria-roledescription", "editor"));
                 this.renderer.scroller.classList.add(this.renderer.keyboardFocusClassName);
                 this.renderer.scroller.setAttribute("aria-label",
-                    nls("Editor content, press Enter to start editing, press Escape to exit")
+                    nls("editor.scroller.aria-label", "Editor content, press Enter to start editing, press Escape to exit")
                 );
 
                 this.renderer.scroller.addEventListener("keyup", focusOnEnterKeyup.bind(this));
@@ -2956,9 +2963,9 @@ config.defineOptions(Editor.prototype, "editor", {
                 this.renderer.$gutter.setAttribute("tabindex", 0);
                 this.renderer.$gutter.setAttribute("aria-hidden", false);
                 this.renderer.$gutter.setAttribute("role", "group");
-                this.renderer.$gutter.setAttribute("aria-roledescription", nls("editor"));
+                this.renderer.$gutter.setAttribute("aria-roledescription", nls("editor.gutter.aria-roledescription", "editor"));
                 this.renderer.$gutter.setAttribute("aria-label",
-                    nls("Editor gutter, press Enter to interact with controls using arrow keys, press Escape to exit")
+                    nls("editor.gutter.aria-label", "Editor gutter, press Enter to interact with controls using arrow keys, press Escape to exit")
                 );
                 this.renderer.$gutter.classList.add(this.renderer.keyboardFocusClassName);
 
@@ -2968,6 +2975,10 @@ config.defineOptions(Editor.prototype, "editor", {
                     gutterKeyboardHandler = new GutterKeyboardHandler(this);
 
                 gutterKeyboardHandler.addListener();
+
+                this.textInput.setAriaOptions({
+                    setLabel: true
+                });
             } else {
                 this.renderer.enableKeyboardAccessibility = false;
 
@@ -2996,6 +3007,17 @@ config.defineOptions(Editor.prototype, "editor", {
             }
         },
         initialValue: false
+    },
+    textInputAriaLabel: {
+        set: function(val) { this.$textInputAriaLabel = val; },
+        initialValue: ""
+    },
+    enableMobileMenu: {
+        /**
+         * @param {boolean} val
+         */
+        set: function(val) { this.$enableMobileMenu = val; },
+        initialValue: true
     },
     customScrollbar: "renderer",
     hScrollBarAlwaysVisible: "renderer",

@@ -26,7 +26,7 @@ module.exports = `
 }
 
 .ace-cloud_editor_dark .ace_marker-layer .ace_selection {
-    background: #213a70;
+    background: #4376bd;
 }
 
 .ace-cloud_editor_dark.ace_multiselect .ace_selection.ace_start {
@@ -63,7 +63,7 @@ module.exports = `
 }
 
 .ace-cloud_editor_dark .ace_marker-layer .ace_selected-word {
-    border: 1px solid #282c34;
+    border: 1px solid #9bd0f7;
 }
 
 .ace-cloud_editor_dark .ace_fold {
@@ -198,7 +198,8 @@ module.exports = `
     background: #272A30;
 }
 .ace-cloud_editor_dark.ace_dark.ace_editor.ace_autocomplete .ace_completion-meta {
-    color: #ACB8B9;
+    color: #95a5a6;
+    opacity: 1;
 }
 .ace-cloud_editor_dark.ace_dark.ace_editor.ace_autocomplete .ace_completion-highlight{
     color: #2AA0BC;

@@ -322,11 +322,19 @@ class VirtualRenderer {
             this.resizing++;
         else
             this.resizing = force ? 1 : 0;
-        // `|| el.scrollHeight` is required for outosizing editors on ie
-        // where elements with clientHeight = 0 alsoe have clientWidth = 0
+        // `|| el.scrollHeight` is required for autosizing editors on ie
+        // where elements with clientHeight = 0 also have clientWidth = 0
         var el = this.container;
         if (!height)
             height = el.clientHeight || el.scrollHeight;
+        if (!height && this.$maxLines && this.lineHeight > 1) {
+            // if we are supposed to fit to content set height at least to 1
+            // so that render does not exit early before calling $autosize
+            if (!el.style.height || el.style.height == "0px") {
+                el.style.height = "1px";
+                height = el.clientHeight || el.scrollHeight;
+            }
+        }
         if (!width)
             width = el.clientWidth || el.scrollWidth;
         var changes = this.$updateCachedSize(force, gutterWidth, width, height);
@@ -1757,9 +1765,10 @@ class VirtualRenderer {
         var insertPosition = position || { row: cursor.row, column: cursor.column };
 
         this.removeGhostText();
-
-        var textLines = text.split("\n");
-        this.addToken(textLines[0], "ghost_text", insertPosition.row, insertPosition.column);
+        
+        var textChunks = this.$calculateWrappedTextChunks(text, insertPosition);
+        this.addToken(textChunks[0].text, "ghost_text", insertPosition.row, insertPosition.column);
+        
         this.$ghostText = {
             text: text,
             position: {
@@ -1767,9 +1776,21 @@ class VirtualRenderer {
                 column: insertPosition. column
             }
         };
-        if (textLines.length > 1) {
+        
+        var widgetDiv = dom.createElement("div");
+        if (textChunks.length > 1) {
+            textChunks.slice(1).forEach(el => {
+                var chunkDiv = dom.createElement("div");
+
+                // If the line is wider than the viewport, wrap the line
+                if (el.wrapped) chunkDiv.className = "ghost_text_line_wrapped";
+
+                chunkDiv.appendChild(dom.createTextNode(el.text));
+                widgetDiv.appendChild(chunkDiv);
+            });
+            
             this.$ghostTextWidget = {
-                text: textLines.slice(1).join("\n"),
+                el: widgetDiv,
                 row: insertPosition.row,
                 column: insertPosition.column,
                 className: "ace_ghost_text"
@@ -1780,7 +1801,7 @@ class VirtualRenderer {
             var pixelPosition = this.$cursorLayer.getPixelPosition(insertPosition, true);
             var el = this.container;
             var height = el.getBoundingClientRect().height;
-            var ghostTextHeight = textLines.length * this.lineHeight;
+            var ghostTextHeight = textChunks.length * this.lineHeight;
             var fitsY = ghostTextHeight < (height - pixelPosition.top);
 
             // If it fits, no action needed
@@ -1790,12 +1811,48 @@ class VirtualRenderer {
             // if it cannot fully fit, scroll so that the row with the cursor
             // is at the top of the screen.
             if (ghostTextHeight < height) {
-                this.scrollBy(0, (textLines.length - 1) * this.lineHeight);
+                this.scrollBy(0, (textChunks.length - 1) * this.lineHeight);
             } else {
                 this.scrollToRow(insertPosition.row);
             }   
         }
         
+    }
+
+    /**
+     * Calculates and organizes text into wrapped chunks. Initially splits the text by newline characters, 
+     * then further processes each line based on display tokens and session settings for tab size and wrapping limits.
+     *
+     * @param {string} text
+     * @param {Point} position
+     * @return {{text: string, wrapped: boolean}[]}
+     */
+    $calculateWrappedTextChunks(text, position) {
+        var availableWidth = this.$size.scrollerWidth - this.$padding * 2;
+        var limit = Math.floor(availableWidth / this.characterWidth) - 2;
+        limit = limit <= 0 ? 60 : limit; // this is a hack to prevent the editor from crashing when the window is too small
+
+        var textLines = text.split(/\r?\n/);
+        var textChunks = [];
+        for (var i = 0; i < textLines.length; i++) {
+            var displayTokens = this.session.$getDisplayTokens(textLines[i], position.column);
+            var wrapSplits = this.session.$computeWrapSplits(displayTokens, limit, this.session.$tabSize);
+
+            if (wrapSplits.length > 0) {
+                var start = 0;
+                wrapSplits.push(textLines[i].length);
+
+                for (var j = 0; j < wrapSplits.length; j++) {
+                    let textSlice = textLines[i].slice(start, wrapSplits[j]);
+                    textChunks.push({text: textSlice, wrapped: true});
+                    start = wrapSplits[j];
+                }
+            }
+            else {
+                textChunks.push({text: textLines[i], wrapped: false});
+            }
+        }
+        return textChunks;
     }
 
     removeGhostText() {
@@ -1904,6 +1961,13 @@ class VirtualRenderer {
 
             _self._dispatchEvent('themeLoaded', {theme:module});
             cb && cb();
+
+            // workaround for safari not redrawing the editor
+            // https://github.com/ajaxorg/ace/issues/5569
+            if (useragent.isSafari && _self.scroller) {
+                _self.scroller.style.background = "red";
+                _self.scroller.style.background = "";
+            }
         }
     }
 
